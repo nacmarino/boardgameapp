@@ -1,0 +1,13 @@
+name: BoardGameApp
+title: BoardGameApp
+username:
+account: nacmarino
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 4191385
+bundleId: 4757831
+url: https://nacmarino.shinyapps.io/BoardGameApp/
+when: 1624661056.97331
+lastSyncTime: 1624661056.97332
+asMultiple: FALSE
+asStatic: FALSE

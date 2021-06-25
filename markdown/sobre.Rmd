@@ -1,0 +1,86 @@
+---
+title: "sobre"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+# Sobre o autor
+
+Eu me chamo Nicholas. Comecei minha carreira na academia, onde concluí
+minha graduação como Biólogo, fiz um mestrado, doutorado e pós-doutorado
+na área de Ecologia. Ao longo deste período de 13 anos, atuei na
+pesquisa em Ecologia, Limnologia (*i.e.*, ecologia de ambientes
+aquáticos continentais), Mudanças Climáticas Globais, Biomonitoramento e
+Avaliação de Impacto Ambiental, publiquei artigos científicos,
+participei de grupos de pesquisa internacionais e cheguei a ministrar
+aulas na Universidade.
+
+Foi ao longo dessa trajetória que eu acabei aprendendo a programar,
+aprendi estatística e Machine Learning - e acabei me apaixonando pela
+área de dados! Assim, acabei fazendo uma mudança de carreira, e hoje
+atuo como Cientista de Dados em uma grande empresa de consultoria
+multinacional.
+
+Você possivelmente deve estar se perguntando 'mas o que isso tem haver
+como este aplicativo?'. Bom, comecei a curtir muito esse universo dos
+jogos de tabuleiro ano passado, iniciando minha coleção através de jogos
+como 7 Wonders Duel, Catan e Ticket to Ride...e não tardou a chegar
+aquele momento em que comecei a me perguntar 'qual seria o próximo jogo
+da coleção?', 'que jogo parecido com esse que eu ia gostar?', 'que jogos
+agradariam a minha família, dado a preferência por uma certa mecânica?'
+e por aí vai. É aí que entra a Ciência de Dados - ela nos fornece o
+jeito de pensar e as ferramentas necessárias para responder à essas e
+outras perguntas através dos dados, muitas vezes nos ajudam a
+simplificar padrões complexos em ideias simples.
+
+Se você quiser saber mais sobre mim e as coisas que ando desenvolvendo,
+basta me seguir no [GitHub](https://github.com/nacmarino) e no
+[LinkedIn](https://www.linkedin.com/in/nicholas-marino-7590361b).
+
+# Sobre o aplicativo
+
+Construí este aplicativo por diversão, para resolver um problema que eu
+tinha e por me interessar bastante no tema. Neste contexto, é importante
+frisar aqui que este aplicativo não possui fins comerciais, tampouco
+estou ganhando algo por ele. Entretanto, caso você queira reproduzir
+este trabalho, parcial ou inteiramente, gostaria de ser comunicado
+antes.
+
+Mas como é que construí esse aplicativo e todo o conteúdo que você
+encontra nele?
+
+-   Utilizei a técnica de ***Web Scrapping*** para identificar e extrair
+    os 500 primeiros jogos de tabuleiro que estão no ranking da
+    [Ludopedia](https://www.ludopedia.com.br/ranking). Para tal, usei o
+    ***Selenium*** para navegar entre as páginas através do
+    ***Python***, e usei o ***BeautifulSoup*** para extrair as
+    informações que estava buscando. Joguei tudo num ***pandas
+    DataFrame*** e tratei os dados;
+-   Este aplicativo foi contruído utilizando o ***shiny***, disponível
+    através do ***R***. Utilizei também os pacotes ***shinyWidgets***,
+    ***shinythemes*** e o ***reactable*** para estilizar um pouco mais o
+    aplicativo e os outputs;
+-   O sistema de recomendação de jogos funciona através de uma
+    ***análise de dissimilaridade***. Para tal, utilizei a [***métrica de
+    dissimilaridade de
+    Gower***](https://medium.com/analytics-vidhya/gowers-distance-899f9c4bd553),
+    que lida muito bem quando temos uma combinação de dados contínuos,
+    categóricos, ordinais e lógicos e queremos calcular a similaridade
+    entre instâncias. Utilizando esta métrica, o aplicativo calcula a
+    similaridade entre o jogo selecionado e todos os demais jogos no
+    banco de dados (dada as características selecionadas), e traz
+    aqueles mais similares e que estejam dentro daquela quantidade
+    selecionada pelo usuário;
+-   Utilizo os pacotes ***ggplot2*** e ***ggridges*** para realizar
+    todas as análises exploratórias feitas na aba '*Como anda a
+    publicação dos jogos?*' ;
+-   Em '*Quantos tipos diferentes de jogos existem?*', utilizo o
+    ***ggplot2***, o ***plotly*** e o ***ggdendro*** para gerar todas as
+    visualizações apresentadas. Utilizo o pacote ***FD*** para calcular
+    a métrica de dissimilaridade de Gower, o pacote ***Rtsne*** para
+    gerar a visualização em 2D da dissimilaridade entre pares de títulos
+    e o pacote ***hclust*** para criar, analisar e podar os dendrogramas
+    apresentados.
+-   A aba '*Quem são as estrelas?*' ainda está em construção.

@@ -1,0 +1,10 @@
+---
+title: "analise_cluster_parte_4"
+output: html_fragment
+---
+
+# Mas afinal, podemos chegar à uma estimativa da quantidade de jogos diferentes?
+
+Se você der um _zoom_ na figura acima, verá que que entre os pontos de corte de 0.15 e de 0.25 temos algum tipo de redução da velocidade de queda da quantidade de grupos com o aumento no valor do ponto de corte. Entretanto, é entre os valores de 0.16 e 0.17 é que ocorre a última queda com maior magnitude - de 69 para 56 grupos distintos - entre aumentos sucessivos no valor do ponto de corte. Assim, é a partir de 0.16 em que parece começar a haver uma maior perda de informação sobre a organização da diversidade de títulos, uma vez que muitos deles começam a ser alocados em um único grupo a partir deste ponto. É este o critério que usarei aqui para definir o ponto de corte apresentado no resto deste artigo. Podemos utilizar este valor do ponto de corte para __podar__ o dendrograma criado, e sintetizar àquela figura complexa acima à uma forma um pouco mais simplificada conforme apresentada abaixo. Através dela podemos ver que temos pelo menos 69 grupos distintos de títulos. 
+<br>
+<br>

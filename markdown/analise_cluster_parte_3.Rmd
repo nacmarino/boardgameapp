@@ -1,0 +1,12 @@
+---
+title: "analise_cluster_parte_3"
+output: html_document
+---
+
+<br>
+<br>
+O dendrograma pode ser utilizado para visualizar a organização dos títulos examinados de acordo com a dissimilaridade entre eles. Títulos muito diferentes tendem a ser separados logo na raiz do dendrograma (área mais à esquerda da figura acima), e cada nova separação sucessiva tende a continuar segregando os mesmos até chegar às pontas do dendrograma - onde a similaridade entre os títulos seria a máxima. Desta forma, a figura acima demonstra que existe sim algum tipo de organização hierárquica dos títulos examinados e que, dependendodo valor de dissimilaridade adotado, podemos identificar grupos distintos de títulos. Por exemplo, se considerarmos o ponto de corte de 0.6 da dissimilaridade, teríamos 3 grupos distintos de títulos; por outro lado, se selecionássemos o ponto de 0.4 teríamos 7 grupos distintos. Assim, dependendo do ponto de corte definido por nós, podemos ter mais ou menos grupos de títulos sendo representados através do dendrograma. Para ficar claro este exercício, apresentamos a figura abaixo, que apresenta a relação entre o valor do ponto de corte da dissimilaridade adotado e a quantidade grupos distintos de jogos que seriam identificados caso aquele ponto de corte seja considerado.
+
+Como podemos ver através desta figura, a quantidade de grupos identificados cai exponencialmente tanto maior é o ponto de corte da dissimilaridade (passe o _mouse_ em cima dos pontos para ver os valores no detalhe). Além disso, é possível ver que é a partir do valor do ponto de corte de 0.2 que parece haver uma desaceleração da curva - o que poderia ser esperado se analisássemos aquele histograma no início desta página -, de forma que aumentar o valor do ponto de corte passa a ter um impacto cada vez menor sobre a quantidade de grupos distintos identificados. Mas que critério então usar para selecionar esse ponto de corte? Existem alguns critérios objetivos para isso mas, no final do dia, é necessário também empregar um pouco de parsimônia e bom senso - e podemos extrair isso já a partir desta figura.
+<br>
+<br>

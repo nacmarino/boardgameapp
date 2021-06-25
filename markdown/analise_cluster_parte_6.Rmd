@@ -1,0 +1,18 @@
+---
+title: "analise_cluster_parte_6"
+output: html_fragment
+---
+
+<br>
+<br>
+# CONCLUSÕES
+
+Nesta seção busquei fornecer uma primeira estimativa para (1) a quantidade de grupos distintos de títulos existentes e (2) a quantidade de variações existentes dentro de cada um desses grupos. As análises apresentadas aqui sugerem que existem, pelo menos 69 grupos distintos de títulos, e que a maior parte destes grupos é composto por até 9 títulos. O que isto pode nos dizer sobre os jogos de tabuleiro então? Como jogador, eu vejo que este grupos como as variações principais do que existe em termos de mecânicas e temas de jogo, enquanto os títulos dentro de cada grupo seriam as variações secundárias e/ou variações específicas dentro daquele grupo. Tomando como exemplo o Grupo 47, me parece que todos eles envolvem a construção de rotas com base em cartas ou algo parecido, mas existem aqueles jogos ali dentro em que esta pegada parece ser bem forte (como em _Ticket to Ride_) e outras nas quais esta pegada já é mais suave e mistura com outras mecânicas (como em _Brass_). Todavia, como analista destes dados, gostaria de exercitar um pouco de cuidado ao interpretar estes resultados e o que eles representam. 
+
+Em primeiro lugar, estes resultados são limitados pelos próprios títulos que os geraram. Não podemos perder de vista que utilizamos apenas os 500 jogos de tabuleiro mais bem avaliados pela comunidade ao construir estas relações e buscar estes padrões. Assim, caso exista algum tipo de viés na seleção destes jogos (_e.g._, os jogos mais bem votados representam por si só um recorte bem particular de mecânicas e temas), então este tipo de viés também estará presente na análise apresentada aqui. Além disso, por mais que este viés possa não existir, não há como saber se estes jogos são de fato uma amostra representativa daqueles que existem por aí - assumimos que sim. Portanto, não há como saber até que ponto estes resultados se aplicam apenas aos títulos examinados ou são de fato um padrão mais geral.
+
+Um segundo ponto importante é que não existe um _benchmark_ para nos informar se esta quantidade de grupos encontrados é razoável ou não, tampouco nos dizer se a quantidade de grupos e variações encontradas já é algo que possa ser considerado diverso ou não. Isto é bastante importante, uma vez que qualquer qualquer afirmação sobre a diversidade precisa ser feita com base em algum padrão pré-estabelecido. Na ausência destes, qualquer conclusão sobre a diversidade de títulos será puramente subjetiva.
+
+Finalmente, apesar de eu ter empregado um critério objetivo para definir o ponto de corte para a análise feita aqui, ele está longe de ser o critério definitivo. Talvez, uma outra pessoa preferisse utilizar outro valor do ponto de corte através deste mesmo critério ou, ainda, utilizar um critério totalmente diferente. De uma forma ou de outra, é interessante notar que estas outras abordagens possivelmente não se afastariam tanto da quantidade de grupos distintos encontrados aqui. Por exemplo, variando o ponto de corte de 0.15 à 0.20 ainda teríamos algo como 75 à 36 grupos distintos de títulos - algo que parece ser bem razoável.
+
+Se você curtiu estas análises, tem alguma dúvida, sugestão ou reclamação, é só entrar em contato comigo através do [GitHub](https://github.com/nacmarino) e no [LinkedIn](https://www.linkedin.com/in/nicholas-marino-7590361b).

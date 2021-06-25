@@ -1,0 +1,14 @@
+---
+title: "analise_cluster_parte_2"
+output: html_fragment
+---
+
+<br>
+<br>
+Mas de que forma esta figura está no ajudando? Bom...se títulos similares tendem a estar muito próximos uns dos outros, o que acabaríamos tendo caso eles fossem totalmente ou muito similares seriam nuvens de pontos bastante sobrepostos. Apesar de observar algumas sobreposições entre um ou outro grupo de pontos, no geral, é bastante claro que existem diferenças entre eles. Além disso, é difícil encontrar grupos bem definidos através desta visualização. Portanto, apesar de alguns jogos parecerem repetições de outros, isso está muito mais para a exceção do que a regra. Ainda assim, será que não existe outra forma de tentar entender como estes jogos estão organizados e quantas variações principais existem entre eles?
+
+# Como os títulos se organizam em torno de sua dissimilaridade?
+
+Até aqui havíamos considera a possibilidade dos títulos formarem grupos bastante distintos e fáceis de serem identificados. Todavia, as análises feitas até agora demonstram exatamente o contrário: os grupos são bastante difíceis de serem identificados e o padrão de dissimilaridade entre os títulos sugere que eles estão organizados em um _continuum_ de dissimilaridade. Dada esta características dos dados, podemos utilizar um outro tipo de visualização para determinar como os títulos estão organizados de acordo com a dissimilaridade nos padrões de presença/ausência de suas mecânicas e temas: um **dendrograma**, conforme apresentado na figura abaixo.
+<br>
+<br>

@@ -1,0 +1,389 @@
+---
+title: "analise_cluster"
+output: html_document
+runtime: shiny
+---
+
+```{r preprocessamento, echo=FALSE, warning=FALSE, message=FALSE}
+#########################
+# CARREGANDO OS PACOTES
+library(tidyverse)
+library(ggdendro)
+library(plotly)
+library(shiny)
+library(Rtsne)
+library(FD)
+
+#########################
+# CARREGANDO OS DADOS
+# carregando os dados originais
+dados <- read_rds(file = '../data/dados.rds')
+
+# carregando os dados no formato de matriz
+matriz <- read_rds(file = '../data/matriz.rds')
+
+# mecanicas
+mecanicas <- read_rds(file = '../data/mecanicas.rds')
+
+# temas
+temas <- read_rds(file = '../data/temas.rds')
+
+#########################
+# MATRIZ DE DISTANCIA
+# criando matriz com a dissimilaridade de gower
+gower_dist <- matriz %>% 
+  select(nome, contains('mecanica'), contains('tema'), -contains('Indeterminado')) %>% 
+  mutate(across(where(is.logical), as.numeric)) %>% 
+  data.frame %>% 
+  `rownames<-`(value = .$nome) %>% 
+  select(-nome) %>% 
+  gowdis(x = ., ord = 'podani')
+
+#########################
+# HIERARCHICAL CLUSTER
+# rodando o hierarchical cluster
+hc <- hclust(d = gower_dist, method = 'ward.D2')
+
+# criando o dendro dataset com tudo
+hc_all <- dendro_data(model = hc)
+
+# setando o valor de corte
+h_value <- 0.16
+
+# cortando o objeto do hierarchical cluster
+hc_subset <- cut(as.dendrogram(hc), h = h_value)
+
+# cortando o dendrograma e colocando ele dentro do objeto do ggdendro
+hc_cutted <- dendro_data(model = hc_subset$upper, type = "rectangle")
+
+# colocando os grupos em um dataframe a parte
+hc_grupos <- hc_subset$lower %>% 
+  enframe(name = 'cluster_id', value = 'dendrograma') %>% 
+  mutate(cluster_id = as.character(cluster_id),
+         grupo = paste0('Grupo ', cluster_id))
+
+#########################
+# PONTOS DE CORTE
+## criando grid de valores de h para cortar a arvore
+hc_h_values <- tibble(
+  h_value = seq(from = 0.01, to = 0.99, by = 0.01)
+)
+
+# calculando a quantidade de clusteres por ponto de corte
+hc_h_values <- hc_h_values %>% 
+  mutate(cortes = map(.x = h_value, ~ cutree(tree = hc, h = .x)),
+         n_cluster = map_dbl(.x = cortes, ~ length(unique(.x)))
+  )
+
+#########################
+# DENDROGRAMA FINAL
+# extraindo os clusteres de cada jogo 
+cluster_jogo <- cutree(tree = hc, h = h_value) %>% 
+  enframe(name = 'nome', value = 'cluster_id')
+
+# criando os dados para o segmento
+segment_data <- segment(hc_cutted) %>% 
+  mutate(yend = ifelse(test = yend < h_value, yes = h_value, no = yend)) 
+
+# criados os dados para os pontos
+point_data <- hc_cutted %>% 
+  pluck('labels') %>% 
+  mutate(cluster_id = str_extract(string = label, pattern = '[0-9]+'),
+         label = str_replace(string = label, pattern = 'Branch\\s', replacement = 'Grupo '),
+         cluster_id = as.character(cluster_id)
+  ) %>% 
+  left_join(y = cluster_jogo %>% 
+              group_by(cluster_id) %>% 
+              summarise(titulos = paste0(sort(nome), collapse = ', '),
+                        quantidade = n()) %>% 
+              mutate(cluster_id = as.character(cluster_id)),
+            by = 'cluster_id'
+  ) %>% 
+  left_join(y = cluster_jogo %>% 
+              group_by(cluster_id) %>%
+              mutate(ranking_within_cluster = row_number()) %>% 
+              filter(ranking_within_cluster <= 3) %>% 
+              summarise(exemplos = paste0(sort(nome), collapse = ', ')) %>% 
+              mutate(cluster_id = as.character(cluster_id)),
+            by = 'cluster_id'
+  ) %>% 
+  cbind(segment_data %>% 
+          filter(yend == h_value) %>% 
+          select(x_fixed = x)) %>% 
+  as_tibble %>% 
+  mutate(y = h_value - 0.01)
+```
+
+# Queria saber...
+
+Existem inúmeros títulos disponíveis no mercado e escolher entre eles pode ser difícil. Alguns títulos trazem a clássica mecânica dos jogos de RPG, outros trazem uma mecânica de construção de rotas, alguns deles focam em rolagem de dados, outros focam em construção de baralhos...têm jogos cuja temática principal é ficção científica, outros onde o foco é a economia ou, ainda, jogos com o tema de terror. Agora, misture todas essas e outras combinações de mecânicas e temas com diferentes graus de complexidade de regras e outras características (*e.g.*, número de jogadores, durante da partida,...), e você começará a vislumbrar a diversidade de possibilidades existentes. Mas, será que existem tantas possibilidades assim? Afinal, quantas grupos de jogos de tabuleiro distintos existem - e quantas variações dentro de cada um deles?
+
+Nesta seção deste aplicativo, eu busco entender a diversidade de títulos disponíveis e tentar fornecer alguma aproximação à pergunta: quantos títulos diferentes realmente existem? Minha hipótese principal é que existe sim uma diversidade grande de títulos mas, quando avaliamos uma amostra razoável deles, podemos sintetizá-los a um número menor de tipos distintos e identificar variações sobre o tema. Por exemplo, o *Ticket to Ride* é um título que ficou bem popular e, hoje, existem três jogos base e diversos suplementos para a franquia; ainda assim, por mais que sejam títulos distintos, todos eles seriam variações de um mesmo tema. Entender a diversidade de títulos e as variações deles é o meu objetivo aqui.
+
+Antes de prosseguir, acho que vale a pena frisar duas coisas:
+
+-   Não é a minha intenção dar uma resposta definitiva à pergunta abordada aqui, tampouco estou querendo simplificar o universo dos jogos de tabuleiro ou, ainda, minimizar o esforço e o trabalho daqueles que trazem à realidade esse mundo tão sensacional. Meu objetivo principal é só entender como estes títulos se relacionam entre si e quais são os grupos principais de títulos existentes. Como um jogador, acredito que isto poderia me ajudar à buscar e selecionar títulos de forma mais ajustada ao meu perfil do que simplesmente ficar explorando as possibilidades uma à uma;
+
+-   Vou usar a base de dados dos 500 jogos de tabuleiro mais bem avaliados pela comunidade a partir do site da [Ludopedia](https://www.ludopedia.com.br/ranking) para tentar responder à pergunta proposta aqui. Neste contexto, é deixar claro algumas premissas da análise que farei:
+
+    -   Estes jogos são uma amostra representativa e não enviesada dos títulos existentes;
+
+    -   Considerarei para esta análise apenas as informações sobre as mecânicas e os temas associados a estes títulos, conforme disponível na página de cada título na Ludopedia. Assim, estamos assumindo que estes dois conjuntos de características são suficientes para entender como a diversidade de jogos está organizada;
+
+    -   As mecânicas e temas identificadas através destes 500 títulos representam os tipos de mecânicas e temas existentes entre os jogos de tabuleiro.
+
+Bom, vamos começar?
+
+# Como caracterizar a diversidade de títulos?
+
+A Ludopedia fornece algumas informações sobre cada título, e aqui focaremos em duas principais delas: as **mecânicas** e os **temas** - cada uma das quais são apresentadas nas respectivas tabelas abaixo.
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+knitr::kable(x = matrix(c(sort(unique(mecanicas$mecanicas)), rep('', 2)), nrow = 11, ncol = 5, byrow = FALSE), 
+             row.names = FALSE, col.names = rep('', 5), align = rep('c', 5), table.attr = "style='width:50%;'",
+             caption = '<b>Mecânicas encontradas entre os títulos avaliados</br>')
+```
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+knitr::kable(x = matrix(c(sort(unique(temas$temas)), rep('', 3)), nrow = 5, ncol = 8, byrow = FALSE), 
+             row.names = FALSE, col.names = rep('', 8), align = rep('c', 8), table.attr = "style='width:50%;'",
+             caption = '<b>Temas encontrados entre os títulos avaliados</b>')
+```
+
+Cada um dos títulos examinados pode ser caracterizado por uma combinação de mecânicas e temas descritas acima. Por exemplo, o _Catan_ é representado pelas seguintes mecânicas e temas: `r paste(filter(dados, str_detect(string = nome, pattern = 'Catan')) %>% pull(mecanicas), filter(dados, str_detect(string = nome, pattern = 'Catan')) %>% pull(temas), sep = ', ')`; por outro lado, o _Mansions of Madness_ é caracterizado por `r paste(filter(dados, nome == 'Mansions of Madness (2ª Edição)') %>% pull(mecanicas), filter(dados, nome == 'Mansions of Madness (2ª Edição)') %>% pull(temas), sep = ', ')`. Assim, cada título pode ser caracterizado pela presença ou ausência de cada uma destas características, de forma que podemos usar esta lógica para montar uma matriz em que temos cada um dos 500 títulos nas linhas e cada uma destas características nas colunas, onde cada célula indica se aquele jogo possui aquela característica ou não. Com esta matriz podemos então definir quão similares são dois ou mais títulos.
+
+Para quantificar quão similares são estes títulos, utilizei aqui a [***métrica de dissimilaridade de Gower***](https://medium.com/analytics-vidhya/gowers-distance-899f9c4bd553). Esta métrica é bastante útil quando queremos mensurar quão parecidas são duas ou mais entidades quando temos uma combinação de tipos de dados diferentes para caracterizá-las (_e.g._, numéricos, categóricos, ordinais, lógicos,...): duas instâncias (no nosso caso, os títulos) são totalmente similares entre si quando o valor desta métrica é 0, e totalmente dissimilares (_i.e._, diferentes) quando o valor desta métrica é 1. Desta forma, utilizei esta abordagem para calcular a dissimilaridade entre cada par de títulos com base na presença/ausência de cada uma das mecânicas e temas existentes, e apresento a distribuição dos valores observados no histograma abaixo.
+
+```{r histograma_dissimilaridade, echo=FALSE, warning=FALSE, message=FALSE, fig.align='center', fig.width=8, fig.height=5}
+# copiando a matriz
+gower_diss <- as.matrix(gower_dist)
+
+# retendo so a diagonal inferior
+gower_diss[upper.tri(x = gower_diss, diag = TRUE)] <- NA
+
+# passando tudo para formato longo
+gower_diss %>% 
+  as.data.frame() %>% 
+  rownames_to_column(var = 'titulo') %>% 
+  as_tibble() %>% 
+  pivot_longer(cols = -titulo, names_to = 'outro_titulo', values_to = 'dissimilaridade') %>% 
+  drop_na() %>% 
+  ggplot() +
+  geom_histogram(mapping = aes(x = dissimilaridade), bins = 40, color = 'black', fill = 'dodgerblue4') +
+  scale_x_continuous(breaks = seq(from = 0, to = 0.45, by = 0.05),
+                     limits = c(0, 0.48)) +
+  labs(x = 'Dissimilaridade',
+       y = 'Qtd. de Observações',
+       title = 'Dissimilaridade entre Títulos',
+       subtitle = 'No geral, existe uma grande similaridade entre os títulos examinados',
+       caption = 'A dissimilaridade varia de 0 (totalmente similares) à 1 (totalmente diferentes). Suprimimos os valores maiores de 0.5,\numa vez que não existem comparações que ultrapassem este valor.') +
+  scale_y_continuous(n.breaks = 8, expand = c(0, 0)) +
+  theme(panel.background = element_blank(),
+        plot.title = element_text(face = 'bold', size = 14),
+        plot.caption = element_text(size = 10),
+        panel.grid = element_blank(),
+        axis.line = element_line(colour = 'black'),
+        axis.text = element_text(colour = 'black', size = 12),
+        axis.title = element_text(face = 'bold', colour = 'black', size = 12)
+  )
+```
+
+Como podemos observar, grande parte dos valores de dissimilaridade entre os títulos encontra-se na faixa de 0 à 0.35 - sem que hajam pares de títulos cuja dissimilaridade seja maior do que este valor. Isto sugere que, no geral, a amostra dos jogos de tabuleiro analisados aqui tendem a compartilhar muitos elementos relacionados à sua mecanica e/ou temática. Em outras palavras, os títulos tendem a ser predominantemente similares uns aos outros. 
+
+Mas o que isso representa para a nossa pergunta? Será que estamos vendo um monte de jogos repetidos? Bom, para nos ajudar a avançar com estas perguntas, podemos alavancar uma das vantagens de se trabalhar com estas métricas de dissimilaridade, que é o fato delas nos permitirem visualizar quão dissimilares são os títulos conforme a figura abaixo (se você passar o _mouse_ em cima de cada ponto, é possível ver qual título aquele ponto representa, bem como a mecânica e o tema associado aquele título). Esta figura é o resultado de um método chamado TSNE ([t-distributed Stochastic Neighbor Embedding](https://en.wikipedia.org/wiki/T-distributed_stochastic_neighbor_embedding)), que tenta mapear cada um dos títulos a um espaço simplificado, sem que com isso haja a perda de informação sobre a dissimilaridade entre os mesmos. Neste contexto, cada pontinho neste gráfico 2D é um dos 500 títulos examinados e a distância entre cada ponto representa a dissimilaridade entre eles - assim, títulos mais parecidos entre si estão mais próximos, e títulos muito diferentes tendem a estar em cantos opostos do gráfico.
+
+```{r tsne, echo=FALSE, warning=FALSE, message=FALSE, fig.align='center', fig.width=8, fig.height=8}
+# rodando o tsne
+tsne <- Rtsne(X = gower_dist, perplexity = 30, is_distance = TRUE, pca_center = FALSE, pca_scale = FALSE, normalize = FALSE)
+
+# juntando outras informações aos resultados do TSNE
+resultados_tsne <- dados %>% 
+  select(nome, complexidade, mecanicas, temas) %>% 
+  cbind(tsne$Y %>% 
+          data.frame() %>%
+          setNames(c('X', 'Y'))) %>% 
+  as_tibble()
+
+# visualização do tsne
+resultados_tsne %>% 
+  plot_ly() %>% 
+  add_markers(x = ~ X, y = ~ Y, hoverinfo = 'text', color = I('dodgerblue3'), stroke = I('black'), size = I(20),
+              text = ~ paste('<b>Título:</b>', nome, '<br>',
+                             '<b>Mecânicas:</b>', mecanicas, '<br>',
+                             '<b>Temas:</b>', temas
+              )
+  ) %>% 
+  layout(title = '<b>Relação dos Títulos de acordo com sua Dissimilaridade</b>',
+         xaxis = list(title = '', showline = FALSE, showticklabels = FALSE, gridcolor = toRGB('white'), zerolinecolor = toRGB('grey60')), 
+         yaxis = list(title = '', showline = FALSE, showticklabels = FALSE, gridcolor = toRGB('white'), zerolinecolor = toRGB('grey60')),
+         hoverlabel = list(align = 'right')
+  )
+
+# escrevendo os resultados do TSNE para criar a figura no app
+write_rds(x = resultados_tsne, file = '../data/resultados_tsne.rds')
+```
+
+Mas de que forma esta figura está no ajudando? Bom...se títulos similares tendem a estar muito próximos uns dos outros, o que acabaríamos tendo caso eles fossem totalmente ou muito similares seriam nuvens de pontos bastante sobrepostos. Apesar de observar algumas sobreposições entre um ou outro grupo de pontos, no geral, é bastante claro que existem diferenças entre eles. Além disso, é difícil encontrar grupos bem definidos através desta visualização. Portanto, apesar de alguns jogos parecerem repetições de outros, isso está muito mais para a exceção do que a regra. Ainda assim, será que não existe outra forma de tentar entender como estes jogos estão organizados e quuantas variações principais existem entre eles?
+
+# Como os títulos se organizam em torno de sua dissimilaridade?
+
+Até aqui havíamos considera a possibilidade dos títulos formarem grupos bastante distintos e fáceis de serem identificados. Todavia, as análises feitas até agora demonstram exatamente o contrário: os grupos são bastante difíceis de serem identificados e o padrão de dissimilaridade entre os títulos sugere que eles estão organizados em um _continuum_ de dissimilaridade. Dada esta características dos dados, podemos utilizar um outro tipo de visualização para determinar como os títulos estão organizados de acordo com a dissimilaridade nos padrões de presença/ausência de suas mecânicas e temas: um **dendrograma**, conforme apresentado na figura abaixo.
+
+```{r dendrograma, echo=FALSE, warning=FALSE, message=FALSE, fig.align='center', fig.width=8, fig.height=8}
+# criando a figura do dendrograma
+plot_ly() %>% 
+  add_segments(data = segment(hc_all), x = ~ y, y = ~ x, xend = ~yend, yend = ~ xend, color = I('black'), showlegend = FALSE,
+               hoverinfo = 'text', text = ~ paste('<b>Dissimilaridade no Ramo:</b>', round(x = yend, digits = 4))
+  ) %>% 
+  add_markers(data = label(hc_all), x = ~y, y = ~x, color = I('black'), stroke = I('black'), size = I(5),
+              hoverinfo = 'text', text = ~ paste('<b>Título:</b>', label)
+  ) %>% 
+  layout(title = '<b>Padrão de agrupamento dos títulos</b>',
+         xaxis = list(title = '<b>Dissimilaridade</b>', zeroline = FALSE, showline = FALSE, showgrid = FALSE, autorange = 'reversed'), 
+         yaxis = list(title = '', zeroline = FALSE, showline = FALSE, showgrid = FALSE, showticklabels = FALSE),
+         hoverlabel = list(align = 'right')
+  )
+
+# salvando os dados para criar a figura no app
+write_rds(x = hc_all, file = '../data/dendrograma_hc_all.rds')
+```
+
+O dendrograma pode ser utilizado para visualizar a organização dos títulos examinados de acordo com a dissimilaridade entre eles. Títulos muito diferentes tendem a ser separados logo na raiz do dendrograma (área mais à esquerda da figura acima), e cada nova separação sucessiva tende a continuar segregando os mesmos até chegar às pontas do dendrograma - onde a similaridade entre os títulos seria a máxima. Desta forma, a figura acima demonstra que existe sim algum tipo de organização hierárquica dos títulos examinados e que, dependendodo valor de dissimilaridade adotado, podemos identificar grupos distintos de títulos. Por exemplo, se considerarmos o ponto de corte de 0.6 da dissimilaridade, teríamos 3 grupos distintos de títulos; por outro lado, se selecionássemos o ponto de 0.4 teríamos 7 grupos distintos. Assim, dependendo do ponto de corte definido por nós, podemos ter mais ou menos grupos de títulos sendo representados através do dendrograma. Para ficar claro este exercício, apresentamos a figura abaixo, que apresenta a relação entre o valor do ponto de corte da dissimilaridade adotado e a quantidade grupos distintos de jogos que seriam identificados caso aquele ponto de corte seja considerado.
+
+Como podemos ver através desta figura, a quantidade de grupos identificados cai exponencialmente tanto maior é o ponto de corte da dissimilaridade (passe o _mouse_ em cima dos pontos para ver os valores no detalhe). Além disso, é possível ver que é a partir do valor do ponto de corte de 0.2 que parece haver uma desaceleração da curva - o que poderia ser esperado se analisássemos aquele histograma no início desta página -, de forma que aumentar o valor do ponto de corte passa a ter um impacto cada vez menor sobre a quantidade de grupos distintos identificados. Mas que critério então usar para selecionar esse ponto de corte? Existem alguns critérios objetivos para isso mas, no final do dia, é necessário também empregar um pouco de parsimônia e bom senso - e podemos extrair isso já a partir desta figura.
+
+```{r ponto_de_corte, echo=FALSE, warning=FALSE, message=FALSE, fig.align='center', fig.width=6, fig.height=6}
+# criando a figura
+plot_ly() %>% 
+  add_trace(data = hc_h_values, x = ~ h_value, y = ~ n_cluster, color = I('black'), mode = 'lines+markers',
+            hoverinfo = 'text', text = ~ paste('<b>Ponto de Corte:</b>', h_value, '<br>',
+                                               '<b>Qtd. de Grupos:</b>', n_cluster)
+  ) %>% 
+  layout(title = '<b>Ponto de corte e quantidade de grupos</b>',
+         xaxis = list(title = '<b>Ponto de Corte da Dissimilaridade</b>'), 
+         yaxis = list(title = '<b>Quantidade de Grupos</b>'),
+         hoverlabel = list(align = 'right')
+  )
+
+# salvando os dados para criar a figura no app
+write_rds(x = hc_h_values, file = '../data/hc_h_values.rds')
+```
+
+# Mas afinal, podemos chegar à uma estimativa da quantidade de jogos diferentes?
+
+Se você der um _zoom_ na figura acima, verá que que entre os pontos de corte de 0.15 e de 0.25 temos algum tipo de redução da velocidade de queda da quantidade de grupos com o aumento no valor do ponto de corte. Entretanto, é entre os valores de 0.16 e 0.17 é que ocorre a última queda com maior magnitude - de 69 para 56 grupos distintos - entre aumentos sucessivos no valor do ponto de corte. Assim, é a partir de 0.16 em que parece começar a haver uma maior perda de informação sobre a organização da diversidade de títulos, uma vez que muitos deles começam a ser alocados em um único grupo a partir deste ponto. É este o critério que usarei aqui para definir o ponto de corte apresentado no resto deste artigo. Podemos utilizar este valor do ponto de corte para __podar__ o dendrograma criado, e sintetizar àquela figura complexa acima à uma forma um pouco mais simplificada conforme apresentada abaixo. Através dela podemos ver que temos pelo menos 69 grupos distintos de títulos. 
+
+```{r dendrograma_final, echo=FALSE, warning=FALSE, message=FALSE, fig.align='center', fig.width=10, fig.height=10}
+# criando a figura
+plot_ly() %>% 
+  add_segments(data = segment_data, x = ~ y, y = ~ x, xend = ~yend, yend = ~ xend, color = I('black'), showlegend = FALSE,
+               hoverinfo = 'text', text = ~ paste('<b>Similaridade no Ramo:</b>', round(x = yend, digits = 4))
+  ) %>% 
+  add_text(data = point_data, x = ~y, y = ~x_fixed, text = ~ label, textposition = 'right',
+           hovertemplate = ~ paste('<b>Grupo:</b>', cluster_id, '<br>',
+                                   '<b>Qtd. de Títulos:</b>', quantidade, '<br>',
+                                   '<b>Exemplos:</b>', exemplos)
+  ) %>% 
+  layout(title = '<b>Padrão de agrupamento dos títulos</b>',
+         xaxis = list(title = '<b>Dissimilaridade</b>', zeroline = FALSE, showline = FALSE, showgrid = FALSE, range = c(1, -0.2), 
+                        tickvals = seq(from = 1.0, to = 0.2, by = -0.2)), 
+         yaxis = list(title = '', zeroline = FALSE, showline = FALSE, showgrid = FALSE, showticklabels = FALSE),
+         hoverlabel = list(align = 'right')
+  )
+
+# salvando os dados para criar a figura no app
+write_rds(x = list(segmentos = segment_data,
+                   pontos = point_data), 
+          file = '../data/dendrograma_cortado.rds')
+```
+
+Além disso, o histograma abaixo demonstra que grande parte dos grupos é formada por até 9 títulos, apesar de alguns outros grupos serem compostos por um número maior de títulos. Você pode ter acesso aos títulos que compõem cada um dos grupos identificados através do menu e dendrograma apresentados abaixo do histograma.
+
+```{r histograma_group_size, echo=FALSE, warning=FALSE, message=FALSE, fig.align='center', fig.width=6, fig.height=6}
+point_data %>% 
+  ggplot(mapping = aes(x = quantidade)) +
+  geom_histogram(bins = 20, color = 'black', fill = 'dodgerblue4') +
+  scale_x_continuous(breaks = seq(from = 0, to = 36, by = 3)) +
+  scale_y_continuous(n.breaks = 8, expand = c(0, 0), limits = c(0, 12)) +
+  labs(x = 'Quantidade de Ocorrências',
+       y = 'Quantidade de títulos no grupo',
+       title = 'Títulos por Grupo',
+       subtitle = 'A maior parte dos grupos é constituída por até 9 títulos, mas alguns\ngrupos são formados por uma maior quantidade de títulos') +
+  theme(panel.background = element_blank(),
+        plot.title = element_text(face = 'bold', size = 14),
+        plot.caption = element_text(size = 10),
+        panel.grid = element_blank(),
+        axis.line = element_line(colour = 'black'),
+        axis.text = element_text(colour = 'black', size = 12),
+        axis.title = element_text(face = 'bold', colour = 'black', size = 12))
+```
+
+```{r shiny_step, echo=FALSE, warning=FALSE, message=FALSE, fig.align='center', fig.width=8, fig.height=8}
+# seletor do grupo
+fluidRow(
+  column(width = 6,
+         selectInput(inputId = 'input_grupo', 
+                     label = 'Selecione o grupo desejado', 
+                     choices = unique(hc_grupos$grupo),
+                     selected = 'Grupo 1', 
+                     multiple = FALSE
+         )
+  )
+)
+
+# render da figura
+output$dendrograma_grupo <- renderPlotly(expr = {
+  # pegando o dendrograma selecionado
+  dendro_selecionado <- hc_grupos %>% 
+    filter(grupo == input$input_grupo) %>% 
+    #filter(grupo == 'Grupo 30') %>% 
+    pull(dendrograma) %>% 
+    pluck(1) %>% 
+    dendro_data(model = .)
+  
+  # pegando informações dos jogos no dendrograma
+  dendro_selecionado_jogos <- dendro_selecionado$labels %>% 
+    as_tibble() %>% 
+    left_join(y = dados %>% 
+                select(nome, complexidade, mecanicas, temas),
+              by = c('label' = 'nome')) %>% 
+    mutate(y = -0.01)
+  
+  # plotando a figura
+  plot_ly() %>% 
+    add_segments(data = segment(dendro_selecionado), x = ~ y, y = ~ x, xend = ~yend, yend = ~ xend, color = I('black'), showlegend = FALSE) %>% 
+    add_text(data = dendro_selecionado_jogos, x = ~y, y = ~x, text = ~ label, textposition = 'right',
+             hovertemplate = ~ paste('<b>Mecânicas:</b>', mecanicas, '<br>',
+                                     '<b>Temas:</b>', temas)
+    ) %>% 
+    layout(xaxis = list(title = '<b>Dissimilaridade</b>', zeroline = FALSE, showline = FALSE, showgrid = FALSE, range = c(0.2, -0.2), 
+                        tickvals = seq(from = 0.2, to = 0, by = -0.05)), 
+           yaxis = list(title = '', zeroline = FALSE, showline = FALSE, showgrid = FALSE, showticklabels = FALSE),
+           hoverlabel = list(align = 'right')
+    )
+  
+})
+# removendo todas os grupos com um só titulo
+hc_grupos <- hc_grupos %>% 
+  mutate(tem_um_titulo = map_dbl(dendrograma, length) == 1) %>% 
+  filter(!tem_um_titulo) %>% 
+  select(-tem_um_titulo)
+
+# salvando os dados para criar a figura no app
+write_rds(x = hc_grupos, file = '../data/dendrograma_subgrupos.rds')
+
+# plotando a figura
+plotlyOutput(outputId = 'dendrograma_grupo')
+```
+
+# CONCLUSÕES
+
+Nesta seção busquei fornecer uma primeira estimativa para (1) a quantidade de grupos distintos de títulos existentes e (2) a quantidade de variações existentes dentro de cada um desses grupos. As análises apresentadas aqui sugerem que existem, pelo menos 69 grupos distintos de títulos, e que a maior parte destes grupos é composto por até 9 títulos. O que isto pode nos dizer sobre os jogos de tabuleiro então? Como jogador, eu vejo que este grupos como as variações principais do que existe em termos de mecânicas e temas de jogo, enquanto os títulos dentro de cada grupo seriam as variações secundárias e/ou variações específicas dentro daquele grupo. Tomando como exemplo o Grupo 47, me parece que todos eles envolvem a construção de rotas com base em cartas ou algo parecido, mas existem aqueles jogos ali dentro em que esta pegada parece ser bem forte (como em _Ticket to Ride_) e outras nas quais esta pegada já é mais suave e mistura com outras mecânicas (como em _Brass_). Todavia, como analista destes dados, gostaria de exercitar um pouco de cuidado ao interpretar estes resultados e o que eles representam. 
+
+Em primeiro lugar, estes resultados são limitados pelos próprios títulos que os geraram. Não podemos perder de vista que utilizamos apenas os 500 jogos de tabuleiro mais bem avaliados pela comunidade ao construir estas relações e buscar estes padrões. Assim, caso exista algum tipo de viés na seleção destes jogos (_e.g._, os jogos mais bem votados representam por si só um recorte bem particular de mecânicas e temas), então este tipo de viés também estará presente na análise apresentada aqui. Além disso, por mais que este viés possa não existir, não há como saber se estes jogos são de fato uma amostra representativa daqueles que existem por aí - assumimos que sim. Portanto, não há como saber até que ponto estes resultados se aplicam apenas aos títulos examinados ou são de fato um padrão mais geral.
+
+Um segundo ponto importante é que não existe um _benchmark_ para nos informar se esta quantidade de grupos encontrados é razoável ou não, tampouco nos dizer se a quantidade de grupos e variações encontradas já é algo que possa ser considerado diverso ou não. Isto é bastante importante, uma vez que qualquer qualquer afirmação sobre a diversidade precisa ser feita com base em algum padrão pré-estabelecido. Na ausência destes, qualquer conclusão sobre a diversidade de títulos será puramente subjetiva.
+
+Finalmente, apesar de eu ter empregado um critério objetivo para definir o ponto de corte para a análise feita aqui, ele está longe de ser o critério definitivo. Talvez, uma outra pessoa preferisse utilizar outro valor do ponto de corte através deste mesmo critério ou, ainda, utilizar um critério totalmente diferente. De uma forma ou de outra, é interessante notar que estas outras abordagens possivelmente não se afastariam tanto da quantidade de grupos distintos encontrados aqui. Por exemplo, variando o ponto de corte de 0.15 à 0.20 ainda teríamos algo como 75 à 36 grupos distintos de títulos - algo que parece ser bem razoável.
+
+Se você curtiu estas análises, tem alguma dúvida, sugestão ou reclamação, é só entrar em contato comigo através do [GitHub](https://github.com/nacmarino) e no [LinkedIn](https://www.linkedin.com/in/nicholas-marino-7590361b).

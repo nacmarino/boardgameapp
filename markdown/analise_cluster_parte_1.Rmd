@@ -1,0 +1,118 @@
+---
+title: "analise_cluster_parte_1"
+output: html_fragment
+---
+
+```{r preprocessamento, echo=FALSE, warning=FALSE, message=FALSE}
+#########################
+# CARREGANDO OS PACOTES
+library(tidyverse)
+library(FD)
+
+#########################
+# CARREGANDO OS DADOS
+# carregando os dados originais
+dados <- read_rds(file = '../data/dados.rds')
+
+# carregando os dados no formato de matriz
+matriz <- read_rds(file = '../data/matriz.rds')
+
+# mecanicas
+mecanicas <- read_rds(file = '../data/mecanicas.rds')
+
+# temas
+temas <- read_rds(file = '../data/temas.rds')
+
+#########################
+# MATRIZ DE DISTANCIA
+# criando matriz com a dissimilaridade de gower
+gower_dist <- matriz %>% 
+  select(nome, contains('mecanica'), contains('tema'), -contains('Indeterminado')) %>% 
+  mutate(across(where(is.logical), as.numeric)) %>% 
+  data.frame %>% 
+  `rownames<-`(value = .$nome) %>% 
+  select(-nome) %>% 
+  gowdis(x = ., ord = 'podani')
+```
+
+# Queria saber...
+
+Existem inúmeros títulos disponíveis no mercado e escolher entre eles pode ser difícil. Alguns títulos trazem a clássica mecânica dos jogos de RPG, outros trazem uma mecânica de construção de rotas, alguns deles focam em rolagem de dados, outros focam em construção de baralhos...têm jogos cuja temática principal é ficção científica, outros onde o foco é a economia ou, ainda, jogos com o tema de terror. Agora, misture todas essas e outras combinações de mecânicas e temas com diferentes graus de complexidade de regras e outras características (*e.g.*, número de jogadores, durante da partida,...), e você começará a vislumbrar a diversidade de possibilidades existentes. Mas, será que existem tantas possibilidades assim? Afinal, quantas grupos de jogos de tabuleiro distintos existem - e quantas variações dentro de cada um deles?
+
+Nesta seção deste aplicativo, eu busco entender a diversidade de títulos disponíveis e tentar fornecer alguma aproximação à pergunta: quantos títulos diferentes realmente existem? Minha hipótese principal é que existe sim uma diversidade grande de títulos mas, quando avaliamos uma amostra razoável deles, podemos sintetizá-los a um número menor de tipos distintos e identificar variações sobre o tema. Por exemplo, o *Ticket to Ride* é um título que ficou bem popular e, hoje, existem três jogos base e diversos suplementos para a franquia; ainda assim, por mais que sejam títulos distintos, todos eles seriam variações de um mesmo tema. Entender a diversidade de títulos e as variações deles é o meu objetivo aqui.
+
+Antes de prosseguir, acho que vale a pena frisar duas coisas:
+
+-   Não é a minha intenção dar uma resposta definitiva à pergunta abordada aqui, tampouco estou querendo simplificar o universo dos jogos de tabuleiro ou, ainda, minimizar o esforço e o trabalho daqueles que trazem à realidade esse mundo tão sensacional. Meu objetivo principal é só entender como estes títulos se relacionam entre si e quais são os grupos principais de títulos existentes. Como um jogador, acredito que isto poderia me ajudar à buscar e selecionar títulos de forma mais ajustada ao meu perfil do que simplesmente ficar explorando as possibilidades uma à uma;
+
+-   Vou usar a base de dados dos 500 jogos de tabuleiro mais bem avaliados pela comunidade a partir do site da [Ludopedia](https://www.ludopedia.com.br/ranking) para tentar responder à pergunta proposta aqui. Neste contexto, é deixar claro algumas premissas da análise que farei:
+
+    -   Estes jogos são uma amostra representativa e não enviesada dos títulos existentes;
+
+    -   Considerarei para esta análise apenas as informações sobre as mecânicas e os temas associados a estes títulos, conforme disponível na página de cada título na Ludopedia. Assim, estamos assumindo que estes dois conjuntos de características são suficientes para entender como a diversidade de jogos está organizada;
+
+    -   As mecânicas e temas identificadas através destes 500 títulos representam os tipos de mecânicas e temas existentes entre os jogos de tabuleiro.
+
+Bom, vamos começar?
+
+# Como caracterizar a diversidade de títulos?
+
+A Ludopedia fornece algumas informações sobre cada título, e aqui focaremos em duas principais delas: as **mecânicas** e os **temas** - cada uma das quais são apresentadas nas respectivas tabelas abaixo.  
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+knitr::kable(x = matrix(c(sort(unique(mecanicas$mecanicas)), rep('', 2)), nrow = 11, ncol = 5, byrow = FALSE), 
+             row.names = FALSE, col.names = rep('', 5), align = rep('c', 5), table.attr = "style='width:50%;'",
+             caption = '<b>Mecânicas encontradas entre os títulos avaliados</br>')
+```
+<br>  
+<br>  
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+knitr::kable(x = matrix(c(sort(unique(temas$temas)), rep('', 3)), nrow = 5, ncol = 8, byrow = FALSE), 
+             row.names = FALSE, col.names = rep('', 8), align = rep('c', 8), table.attr = "style='width:50%;'",
+             caption = '<b>Temas encontrados entre os títulos avaliados</b>')
+```
+<br>
+<br>
+Cada um dos títulos examinados pode ser caracterizado por uma combinação de mecânicas e temas descritas acima. Por exemplo, o _Catan_ é representado pelas seguintes mecânicas e temas: `r paste(filter(dados, str_detect(string = nome, pattern = 'Catan')) %>% pull(mecanicas), filter(dados, str_detect(string = nome, pattern = 'Catan')) %>% pull(temas), sep = ', ')`; por outro lado, o _Mansions of Madness_ é caracterizado por `r paste(filter(dados, nome == 'Mansions of Madness (2ª Edição)') %>% pull(mecanicas), filter(dados, nome == 'Mansions of Madness (2ª Edição)') %>% pull(temas), sep = ', ')`. Assim, cada título pode ser caracterizado pela presença ou ausência de cada uma destas características, de forma que podemos usar esta lógica para montar uma matriz em que temos cada um dos 500 títulos nas linhas e cada uma destas características nas colunas, onde cada célula indica se aquele jogo possui aquela característica ou não. Com esta matriz podemos então definir quão similares são dois ou mais títulos.
+
+Para quantificar quão similares são estes títulos, utilizei aqui a [***métrica de dissimilaridade de Gower***](https://medium.com/analytics-vidhya/gowers-distance-899f9c4bd553). Esta métrica é bastante útil quando queremos mensurar quão parecidas são duas ou mais entidades quando temos uma combinação de tipos de dados diferentes para caracterizá-las (_e.g._, numéricos, categóricos, ordinais, lógicos,...): duas instâncias (no nosso caso, os títulos) são totalmente similares entre si quando o valor desta métrica é 0, e totalmente dissimilares (_i.e._, diferentes) quando o valor desta métrica é 1. Desta forma, utilizei esta abordagem para calcular a dissimilaridade entre cada par de títulos com base na presença/ausência de cada uma das mecânicas e temas existentes, e apresento a distribuição dos valores observados no histograma abaixo.
+
+```{r histograma_dissimilaridade, echo=FALSE, warning=FALSE, message=FALSE, fig.align='center', fig.width=8, fig.height=5}
+# copiando a matriz
+gower_diss <- as.matrix(gower_dist)
+
+# retendo so a diagonal inferior
+gower_diss[upper.tri(x = gower_diss, diag = TRUE)] <- NA
+
+# passando tudo para formato longo
+gower_diss %>% 
+  as.data.frame() %>% 
+  rownames_to_column(var = 'titulo') %>% 
+  as_tibble() %>% 
+  pivot_longer(cols = -titulo, names_to = 'outro_titulo', values_to = 'dissimilaridade') %>% 
+  drop_na() %>% 
+  ggplot() +
+  geom_histogram(mapping = aes(x = dissimilaridade), bins = 40, color = 'black', fill = 'dodgerblue4') +
+  scale_x_continuous(breaks = seq(from = 0, to = 0.45, by = 0.05),
+                     limits = c(0, 0.48)) +
+  labs(x = 'Dissimilaridade',
+       y = 'Qtd. de Observações',
+       title = 'Dissimilaridade entre Títulos',
+       subtitle = 'No geral, existe uma grande similaridade entre os títulos examinados',
+       caption = 'A dissimilaridade varia de 0 (totalmente similares) à 1 (totalmente diferentes). Suprimimos os valores maiores de 0.5,\numa vez que não existem comparações que ultrapassem este valor.') +
+  scale_y_continuous(n.breaks = 8, expand = c(0, 0)) +
+  theme(panel.background = element_blank(),
+        plot.title = element_text(face = 'bold', size = 14),
+        plot.caption = element_text(size = 10),
+        panel.grid = element_blank(),
+        axis.line = element_line(colour = 'black'),
+        axis.text = element_text(colour = 'black', size = 12),
+        axis.title = element_text(face = 'bold', colour = 'black', size = 12)
+  )
+```
+
+Como podemos observar, grande parte dos valores de dissimilaridade entre os títulos encontra-se na faixa de 0 à 0.35 - sem que hajam pares de títulos cuja dissimilaridade seja maior do que este valor. Isto sugere que, no geral, a amostra dos jogos de tabuleiro analisados aqui tendem a compartilhar muitos elementos relacionados à sua mecanica e/ou temática. Em outras palavras, os títulos tendem a ser predominantemente similares uns aos outros. 
+
+Mas o que isso representa para a nossa pergunta? Será que estamos vendo um monte de jogos repetidos? Bom, para nos ajudar a avançar com estas perguntas, podemos alavancar uma das vantagens de se trabalhar com estas métricas de dissimilaridade, que é o fato delas nos permitirem visualizar quão dissimilares são os títulos conforme a figura abaixo (se você passar o _mouse_ em cima de cada ponto, é possível ver qual título aquele ponto representa, bem como a mecânica e o tema associado aquele título). Esta figura é o resultado de um método chamado TSNE ([t-distributed Stochastic Neighbor Embedding](https://en.wikipedia.org/wiki/T-distributed_stochastic_neighbor_embedding)), que tenta mapear cada um dos títulos a um espaço simplificado, sem que com isso haja a perda de informação sobre a dissimilaridade entre os mesmos. Neste contexto, cada pontinho neste gráfico 2D é um dos 500 títulos examinados e a distância entre cada ponto representa a dissimilaridade entre eles - assim, títulos mais parecidos entre si estão mais próximos, e títulos muito diferentes tendem a estar em cantos opostos do gráfico.
+<br>
+<br>

@@ -1,0 +1,23 @@
+---
+title: "Bem-vindo!"
+output: html_document
+---
+
+# Bem-vindo! 
+
+Estamos acostumados a nos divertir com jogos de tabuleiro desde pequenos, através de jogos tradicionais como Banco Imobiliário, Perfil e Detetive. Entretanto, o universo dos jogos de tabuleiro vai muito além destes títulos, se expandindo através de inúmeras combinações de mecânicas, temas e outras características únicas que nos trazem uma infinidade de possibilidades. Têm jogos para curtir com a família, para cooperar, para competir, para rabiscar e colorir, para explorar masmorras, para construir, para assustar,...e, no meio de tantas possibilidades, como encontrar aqueles que mais podem te agradar?
+
+Este aplicativo é uma ferramenta para te ajudar a navegar pela diversidade de jogos de tabuleiro disponíveis, te ajudar a encontrar aqueles jogos que você pode gostar e, também, entender um pouquinho mais sobre este universo através dos dados. Para isso, busquei as informações disponíveis sobre os 500 jogos de tabuleiro mais bem avaliados pela comunidade através do ranking da [Ludopedia](https://www.ludopedia.com.br/ranking), e os apresento em três partes:
+
+1.  Na aba '***Busca'*** você encontrará um resumo das informações de cada um dos jogos extraídos a partir do ranking, além de um conjunto de filtros interativos que te permitirão refinar a sua busca por um grupo de títulos específicos. A idéia aqui é te ajudar a encontrar aquele jogo que você já conhece, e coletar mais informações sobre ele;
+
+2.  Já na aba '***Deu match!'*** estruturei um mecanismo simples de recomendação de jogos, muito útil caso você tenha em mente um jogo que você gosta e deseja encontrar títulos similares a ele que talvez você não conheça;
+
+3.  A aba ***'Gostaria saber...'*** traz algumas perguntas que podemos fazer com as informações coletadas a partir dos jogos no ranking, bem como uma primeira tentativa de resposta à elas:
+    + Em **'Como anda a publicação dos jogos?'**, tento explorar de que forma evoluiu a publicação dos títulos ao longo do tempo, as avaliações dadas a eles e a quantidade de jogadores;
+    + Sabemos que existem inúmeras mecânicas, temáticas e características de cada um dos jogos de tabuleiro...no entanto, quantas variações destas coisas podemos dizer que existem? É esse o tipo de pergunta que tento começar a responder em **'Quantos tipos diferentes de jogos existem?'**;
+    + Já em **'Quem são as estrelas?'** busco identificar aqueles títulos que parecem ser bastante promissores, mas que possivelmente acabam passando despercebidos quando só olhamos a posição deles no ranking.
+<br>
+4.  Finalmente, a aba ***'Sobre'*** fala um pouco mais sobre o autor deste aplicativo, algumas informações mais técnicas sobre ele e informações para contato.
+
+Espero que esse aplicativo seja útil para você assim como está sendo para me ajudar a construir a minha coleção!

@@ -1,0 +1,35 @@
+---
+title: "analise_cluster_parte_5"
+output: html_fragment
+---
+
+```{r preprocessamento, echo=FALSE, warning=FALSE, message=FALSE}
+#########################
+# CARREGANDO OS PACOTES
+library(tidyverse)
+
+#########################
+# CARREGANDO OS DADOS
+dendrograma_cortado <- read_rds(file = '../data/dendrograma_cortado.rds')
+```
+
+Além disso, o histograma abaixo demonstra que grande parte dos grupos é formada por até 9 títulos, apesar de alguns outros grupos serem compostos por um número maior de títulos. Você pode ter acesso aos títulos que compõem cada um dos grupos identificados através do menu e dendrograma apresentados abaixo do histograma.
+
+```{r histograma_group_size, echo=FALSE, warning=FALSE, message=FALSE, fig.align='center', fig.width=6, fig.height=6}
+dendrograma_cortado$pontos %>% 
+  ggplot(mapping = aes(x = quantidade)) +
+  geom_histogram(bins = 20, color = 'black', fill = 'dodgerblue4') +
+  scale_x_continuous(breaks = seq(from = 0, to = 36, by = 3)) +
+  scale_y_continuous(n.breaks = 8, expand = c(0, 0), limits = c(0, 12)) +
+  labs(x = 'Quantidade de Ocorrências',
+       y = 'Quantidade de títulos no grupo',
+       title = 'Títulos por Grupo',
+       subtitle = 'A maior parte dos grupos é constituída por até 9 títulos, mas alguns\ngrupos são formados por uma maior quantidade de títulos') +
+  theme(panel.background = element_blank(),
+        plot.title = element_text(face = 'bold', size = 14),
+        plot.caption = element_text(size = 10),
+        panel.grid = element_blank(),
+        axis.line = element_line(colour = 'black'),
+        axis.text = element_text(colour = 'black', size = 12),
+        axis.title = element_text(face = 'bold', colour = 'black', size = 12))
+```

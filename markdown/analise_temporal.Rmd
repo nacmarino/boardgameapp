@@ -1,0 +1,183 @@
+---
+title: "analise_temporal"
+output: html_fragment
+---
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+# carregando os pacotes
+library(tidyverse)
+library(lubridate)
+library(ggridges)
+
+# carregando os dados
+dados <- read_rds(file = '../data/dados.rds')
+```
+
+# Queria saber...
+
+Nesta seção eu busco entender como anda a criação e publicação dos jogos de tabuleiro ao longo do tempo. Mais especificamente, vamos tentar entender como tem variado a quantidade de jogos criados e publicados entre os anos e décadas, além de quantificar quanto tempo de atraso temos entre a criação de um jogo e a sua publicação no Brasil. Para isso, vamos usar as informações existentes sobre os 500 jogos de tabuleiro mais bem avaliados pela comunidade a partir do site da [Ludopedia](https://www.ludopedia.com.br/ranking). É importante frisar aqui algumas das premissas para essa análise:
+
+1.  Os 500 jogos extraídos a partir do ranking da Ludopedia são uma amostra representativa e não enviesada dos títulos existentes;
+
+2.  O ano de criação dos jogos representará também o ano em que foram publicados, a não ser para os jogos criados fora do páis e posteriormente publicados aqui - neste caso, contaremos como o ano de publicação aquele informado no site da Ludopedia.
+
+Bom, vamos começar!
+
+# Como anda a publicação dos jogos?
+
+A análise dos dados sobre o ano de criação dos jogos no Top 500 da Ludopedia demonstra que grande parte deles originou-se entre os anos de 2010 e 2020, conforme observado na figura abaixo. Isto pode nos dizer uma ou duas coisas: (1) grande parte dos jogos mais bem avaliados foi criado recentemente e/ou (2) tivemos um *boom* de novos títulos surgindo nessa década - talvez, por conta da popularização do *hobby*, quem sabe.
+
+```{r echo=FALSE, message=FALSE, fig.align='center', fig.width=8, fig.height=5}
+dados %>% 
+  count(decada = floor(ano_criacao / 10) * 10, name = 'jogos') %>% 
+  filter(decada >= 1980) %>% 
+  ggplot(mapping = aes(x = decada, y = jogos)) +
+  geom_line() +
+  geom_point(size = 5, stroke = 1, shape = 21, fill = 'dodgerblue4', color = 'black') +
+  geom_text(mapping = aes(label = jogos), nudge_y = 16, nudge_x = -1.5) +
+  scale_y_continuous(breaks = seq(from = 0, to = 400, by = 50)) +
+  labs(x = 'Década',
+       y = 'Quantidade de Títulos',
+       title = 'Quantidade de títulos criados por década',
+       subtitle = 'A maior parte dos títulos no Top 500 do ranking da Ludopedia foi criado entre 2010 e 2019',
+       caption = 'Suprimimos desta figura três títulos, publicados antes de 1980, a fim de facilitar a visualização:\nGo (22), Xadrez (1475) e Crokinole (1867).') +
+  theme(panel.background = element_blank(),
+        plot.title = element_text(face = 'bold', size = 14),
+        plot.caption = element_text(size = 9),
+        panel.grid = element_line(colour = 'grey90'),
+        axis.line = element_line(colour = 'black'),
+        axis.text = element_text(colour = 'black', size = 12),
+        axis.title = element_text(face = 'bold', colour = 'black', size = 12))
+```
+
+Um ponto importante é que tive que retirar três jogos da base de dados para construir esta visualização e deixá-la mais legível - são eles: o Go (criado em 22), Xadrez (criado em 1475) e Crokinole (criado em 1867). Além disso, note que a série temporal mostrada na figura acima começa a partir de 1980. Isto parece reforçar a ideia de que, embora os jogos de tabuleiro existam há algum tempo, foi somente na última década que houve uma explosão na diversidade de títulos disponíveis.
+
+Outro ponto interessante é apresentado na figura abaixo. Quando comparamos o volume de títulos publicados ao longo do tempo com aqueles publicados no Brasil no mesmo período, podemos observar que foi somente nos últimos anos que estes títulos chegaram por aqui. Mais especificamente, foi em 2018 e 2019 que observamos um grande salto na disponibilização dos títulos no país. Isto parece sugerir que deve exigir algum tipo de atraso considerável para a publicação dos jogos por aqui.
+
+```{r echo=FALSE, message=FALSE, fig.align='center', fig.width=8, fig.height=5}
+list(criacao = dados %>% 
+       filter(ano_criacao >= 1980) %>% 
+       select(ano = ano_criacao),
+     publicacao = dados %>% 
+       filter(ano_criacao >= 1980, disponivel_br == 'Sim', !is.na(date_lancamento_br)) %>% 
+       mutate(ano = year(date_lancamento_br)) %>% 
+       select(ano) %>% 
+       drop_na()) %>% 
+  bind_rows(.id = 'set') %>% 
+  count(set, ano) %>% 
+  ggplot(mapping = aes(x = ano, y = set, height = n, fill = n)) +
+  geom_density_ridges_gradient(stat = 'identity', scale = 1) +
+  scale_fill_viridis_c(guide = guide_colorbar(title = 'Títulos', title.theme = element_text(face = 'bold')), 
+                       breaks = seq(from = 0, to = 72, by = 12)) +
+  scale_y_discrete(label = c('Total', 'Publicados no Brasil'), expand = c(0, 0)) +
+  scale_x_continuous(name = 'Ano', breaks = seq(from = 1980, to = 2020, by = 5)) +
+  labs(title = 'Série temporal da quantidade de títulos',
+       subtitle = 'Grande parte dos títulos no Top 500 do ranking da Ludopedia só foram publicados no Brasil na última década',
+       caption = 'Suprimimos desta figura três títulos, publicados antes de 1980, a fim de facilitar a visualização:\nGo (22), Xadrez (1475) e Crokinole (1867).') +
+  theme(panel.background = element_blank(),
+        axis.title.y = element_blank(),
+        panel.grid = element_line(colour = 'grey90'),
+        plot.caption = element_text(size = 9),
+        plot.title = element_text(face = 'bold', size = 14),
+        axis.text = element_text(colour = 'black', size = 12),
+        axis.title.x = element_text(face = 'bold', colour = 'black', size = 12))
+```
+
+# Quanto tempo leva para um título chegar no Brasil?
+
+Para tentar responder à essa pergunta, calculamos o atraso na publicação como a diferença entre o ano de publicação de cada título disponível no Brasil e o ano em que eles foram criados. Através da figura abaixo, podemos observar que grande parte dos títulos levaram cerca de 2 anos para chegar ao Brasil. Entretanto, existem casos nos quais mais de 10 anos se passaram até que o título chegasse por aqui.
+
+```{r echo=FALSE, message=FALSE, fig.align='center', fig.width=8, fig.height=5}
+dados %>% 
+  filter(disponivel_br == 'Sim', !is.na(date_lancamento_br)) %>% 
+  mutate(diferenca = year(date_lancamento_br) - ano_criacao) %>% 
+  ggplot(mapping = aes(x = diferenca)) +
+  geom_histogram(fill = 'dodgerblue4', color = 'black', bins = 30) +
+  scale_x_continuous(n.breaks = 16) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 85)) +
+  labs(x = 'Atraso (anos)',
+       y = 'Quantidade de Títulos',
+       title = 'Atraso na publicação dos títulos no Brasil',
+       subtitle = 'Apesar do atraso na publicação dos jogos no Brasil ser relativamente baixa, alguns dos títulos só chegaram\npor aqui 1 ou 2 décadas após sua criação',
+       caption = 'O atraso na publicação dos jogos é calculado como a difereça entre o ano de publicação e o de criação do título.') +
+  theme(panel.background = element_blank(),
+        plot.title = element_text(face = 'bold', size = 14),
+        plot.caption = element_text(size = 10),
+        panel.grid = element_line(colour = 'grey90'),
+        axis.line = element_line(colour = 'black'),
+        axis.text = element_text(colour = 'black', size = 12),
+        axis.title = element_text(face = 'bold', colour = 'black', size = 12))
+```
+
+Um ponto interessante a se notar é que ao longo dos últimos anos parece haver algum tipo de tendência de queda no atraso para a publicação dos títulos no Brasil. A figura abaixo demonstra que os jogos publicados até 2015 pareciam ter sido criados, no geral, há 7 ou 8 anos antes; este número caiu bastante em 2016 e 2017, e sofreu uma nova queda a partir de 2018. Embora alguns títulos criados há mais tempo ainda sejam publicados nos últimos anos, é predominante a publicação de títulos com até 2 anos desde a sua criação no Brasil.
+
+```{r echo=FALSE, message=FALSE, fig.align='center', fig.width=8, fig.height=5}
+dados %>% 
+  filter(disponivel_br == 'Sim', !is.na(date_lancamento_br)) %>% 
+  mutate(ano = year(date_lancamento_br),
+         diferenca = ano - ano_criacao) %>% 
+  mutate(ano = factor(x = ano, levels = seq(from = 2013, to = 2021, by = 1))) %>% 
+  ggplot(mapping = aes(x = ano, y = diferenca, fill = ano)) +
+  geom_boxplot(show.legend = FALSE) +
+  scale_x_discrete(drop = FALSE)  +
+  scale_y_continuous(breaks = seq(from = 0, to = 30, by = 5)) +
+  scale_fill_manual(values = RColorBrewer::brewer.pal(n = 9, name = 'Spectral')) +
+  labs(x = 'Ano',
+       y = 'Atraso (anos)',
+       title = 'Série temporal do atraso na publicação dos títulos no Brasil',
+       subtitle = 'O atraso na publicação dos títulos no Brasil parece estar abaixando, principalmente quando comparamos ao atraso\nobservado entre 2013 e 2015',
+       caption = 'O atraso na publicação dos jogos é calculado como a difereça entre o ano de publicação e o de criação do título.') +
+  theme(panel.background = element_blank(),
+        plot.title = element_text(face = 'bold', size = 14),
+        plot.caption = element_text(size = 10),
+        panel.grid = element_line(colour = 'grey90'),
+        axis.line = element_line(colour = 'black'),
+        axis.text = element_text(colour = 'black', size = 12),
+        axis.title = element_text(face = 'bold', colour = 'black', size = 12))
+```
+
+# O que poderia estar associado a estes padrões?
+
+Já vimos que grande parte dos títulos disponíveis foram criados na última década, e que nos últimos anos houve uma disponibilização massiva dos mesmos aqui pelo Brasil. Também apresentamos a hipótese de que o grande volume de títulos na última década pode estar associado à popularização do *hobby*...mas como entender o padrão para o atraso na disponibilização dos jogos aqui pelo Brasil?
+
+Se analisarmos os jogos disponibilizados no Brasil que estão neste ranking do Top 500 da Ludopedia (337 títulos), podemos observar que 13 editoras são responsáveis por cerca de 90% dos mesmos, conforme apresentado na figura abaixo. Destas, a Galápagos Jogos é áquela que apresenta a maior contribuição (32.6% dos títulos), seguida da Devir Brasil (11% dos títulos), Grok Games (fusão da Mandala Jogos e Ludofy Creative; 10.1% dos títulos), Conclave Editora (9.79% dos títulos), MeepleBR (8.61% dos títulos) e PaperGames (6.82% dos títulos). Caso estas editoras tenham surgido e/ou atuado com mais intensidade no Brasil na última década, então pode ser que isto tenha contribuído para aquele padrão de atraso na disponibilização dos títulos por aqui.
+
+```{r echo=FALSE, message=FALSE, fig.align='center', fig.width=8, fig.height=5}
+dados %>% 
+  filter(disponivel_br == 'Sim') %>% 
+  drop_na(editora_brasileira) %>% 
+  mutate(editora_brasileira = case_when(editora_brasileira %in% c('Ludofy Creative', 'Mandala Jogos') ~ 'Grok Games',
+                                        editora_brasileira == 'Galápagos' ~ 'Galápagos Jogos',
+                                        TRUE ~ editora_brasileira)) %>% 
+  count(editora_brasileira, name = 'titulos', sort = TRUE) %>% 
+  mutate(proporcao = titulos / sum(titulos),
+         acumulado = cumsum(proporcao),
+         editora_brasileira = fct_reorder(editora_brasileira, titulos, .desc = TRUE)) %>% 
+  filter(acumulado <= 0.90) %>% 
+  ggplot(mapping = aes(x = titulos, y = reorder(editora_brasileira, titulos), fill = editora_brasileira)) +
+  geom_col(color = 'black', show.legend = FALSE) +
+  geom_text(mapping = aes(label = titulos), nudge_x = 4) +
+  scale_fill_viridis_d() +
+  scale_x_continuous(breaks = seq(from = 0, to = 130, by = 20), expand = c(0, 0), limits = c(0, 125)) +
+  labs(x = 'Quantidade de Títulos',
+       title = 'Títulos publicados no Brasil por editora',
+       subtitle = 'As 13 editoras abaixo são responsáveis por ter publicado cerca de 90% dos títulos\nque foram disponibizados no Brasil',
+       caption = 'Os valores nesta figura considera apenas os títulos disponíveis no Top 500 do ranking da Ludopedia') +
+  theme(panel.background = element_blank(),
+        plot.title = element_text(face = 'bold', size = 14),
+        plot.caption = element_text(size = 10),
+        panel.grid = element_line(colour = 'grey90'),
+        axis.line = element_line(colour = 'black'),
+        axis.text = element_text(colour = 'black', size = 12),
+        axis.title = element_text(face = 'bold', colour = 'black', size = 12),
+        axis.title.y = element_blank())
+```
+
+Eu fiz uma busca rápida na internet e vi que grande parte destas editoras surgiram e/ou passaram a atuar na área na última década: a Galápagos Jogos em 2009, a MeepleBR em 2014, a PaperGames em 2016 e a Grok Games em 2019. As exceções à regra seriam a Devir Brasil (fundada em 1987) e a Conclave Editora (fundada em 2003). Não sei se isso fornece as evidências que eu precisava para considerar minha hipótese plausível, mas fica a possibilidade no ar.
+
+# Conclusões
+
+Esta é uma análise bastante preliminar e exploratória da serie histórica sobre o volume de jogos de tabuleiro criados e publicados no Brasil. Utilizamos os dados disponíveis para 500 jogos que estão no site da Ludopedia, assumindo que eles formam uma análise representativa dos jogos disponíveis por aí. Portanto, é necessário cuidado ao interpretar estes padrões ou querer buscar algum tipo de causualidade nos mesmos. Ainda assim, é animador ver o crescente interesse e atividade na área.
+
+Se você curtiu estas análises, tem alguma dúvida, sugestão ou reclamação, é só entrar em contato comigo através do [GitHub](https://github.com/nacmarino) e no
+[LinkedIn](https://www.linkedin.com/in/nicholas-marino-7590361b).
